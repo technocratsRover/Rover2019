@@ -16,7 +16,7 @@ location=[]
 log=[]
 queue=[]
 client_list=[]
-
+running=True
 # =============
 # System Parser
 # =============
@@ -35,12 +35,17 @@ daemon = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 daemon.bind(('', PORT))
 client_list.append(daemon)
 
+
+def closeAllClients():
+  for socket in client_list:
+    socket.close()
+
 # Function for threading
 def recieve():
   data=''
   t = threading.currentThread()
   
-  while client_list:
+  while client_list and running:
     readable, _, _ = select.select(client_list, [], [], 0)
     for socket in readable:
       if socket is daemon:
@@ -60,6 +65,7 @@ def recieve():
           client_list.remove(socket)
         else:
           app.updateData(data)
+  t.terminate()
 
 # =====================
 # GUI Application Class
@@ -79,6 +85,9 @@ class Application(Frame):
     self.auto=False
     self.autoState='normal'
     self.data='None'
+    self.tempData=None
+    self.phData=None
+    self.moistureData=None
     
     master.geometry('600x400')
     self.initMenu()
@@ -128,7 +137,7 @@ class Application(Frame):
     # Command Input
     self.textCommandLab = Label(self, text="Command: ")
     self.textCommandLab.place(x=30, y=100)
-    self.inputCommand = Entry(self, width=50, state=self.autoState)
+    self.inputCommand = Entry(self, width=40, state=self.autoState)
     self.inputCommand.place(x=100, y=100)
 
     self.inputButton = Button(self, text='Execute', command=self.parseCommand)
@@ -140,13 +149,33 @@ class Application(Frame):
     self.textPastExeutedVal = Label(self, text=self.pastExecutedCommand)
     self.textPastExeutedVal.place(x=170, y=150)
 
-    # Data
-    self.textData = Label(self, text=self.data)
-    self.textData.place(x=400, y=300)
+    # Data Recieved
+    self.textData = LabelFrame(self, text=self.data)
+    self.textData.place(x=400, y=350)
 
     # Location
     self.textLocationLabel = Label(self, text="Location: ")
     self.textLocationLabel.place(x=30, y=200)
+
+    # Sensors
+    self.sensorFrame = LabelFrame(self, text='Sensor Data', height=150, width=200, bd=5)
+    self.sensorFrame.place(x=350, y=200)
+    #Values inside label
+    self.textTempLabel = Label(self.sensorFrame, text='Temperature: ')
+    self.textTempLabel.place(x=10, y=20)
+    self.textTempLabel = Label(self.sensorFrame, text=self.tempData)
+    self.textTempLabel.place(x=70, y=20)
+
+    self.textPhLabel = Label(self.sensorFrame, text='PH: ')
+    self.textPhLabel.place(x=10, y=40)
+    self.textPhLabel = Label(self.sensorFrame, text=self.phData)'Moisture: '
+    self.textPhLabel.place(x=70, y=40)
+
+    self.textMoistureLabel = Label(self.sensorFrame, text='Moisture: ')
+    self.textMoistureLabel.place(x=10, y=60)
+    self.textMoistureLabel = Label(self.sensorFrame, text=self.moistureData)
+    self.textMoistureLabel.place(x=70, y=60)
+
 
   # Labels for list of locations
   def LocationList(self):
@@ -217,7 +246,7 @@ class Application(Frame):
     elif operation=='CURRENT':
       self.currentLocation=[values[0], values[1]]
       self.textCurrVal.config(text=str(values[0])+" N, "+str(values[1]))
-      if self.nextLocation and abs(self.currentLocation[0] - self.nextLocation[0])<2 and abs(self.currentLocation[1] - self.nextLocation[1])<2 and len(self.location)>2:
+      if self.nextLocation and abs(self.currentLocation[0] - self.nextLocation[0])<0.000001 and abs(self.currentLocation[1] - self.nextLocation[1])<0.000001 and len(self.location)>2:
         try:
           self.nextLocation = self.location[self.location.index(self.nextLocation)+1]
           self.textNextVal.config(text=str(self.nextLocation[0])+" N, "+str(self.nextLocation[1]))
@@ -252,7 +281,7 @@ class Application(Frame):
     elif typeOfData=='$SENSOR':
       self.updateDataSensor(data[1:])
     else:
-      print('Unknown Type: ', typeOfData. " recieved!")
+      print('Unknown Type: ', typeOfData, " recieved!")
       
     
 
@@ -261,13 +290,13 @@ class Application(Frame):
     # daemon.close()
     print("Exiting...")
     self.master.destroy()
-    recieveThread.run=False
-    recieveThread.join()
+    running=False
+    closeAllClients()
     print("Thread: ", recieveThread.isAlive())
     sys.exit()
 
 
-print("Daemon Started! Waiting for service.. ", 47776)
+print("Daemon Started! Waiting for service on PORT: ", PORT)
 daemon.listen(1)
 daemon, address = daemon.accept()
 print("Connection Accepted!")
