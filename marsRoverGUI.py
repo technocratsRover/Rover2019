@@ -15,6 +15,7 @@ BUFFER = 1024
 location=[]
 log=[]
 queue=[]
+client_list=[]
 
 # =============
 # System Parser
@@ -32,23 +33,34 @@ BUFFER = 1024
 # ========================
 daemon = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 daemon.bind(('', PORT))
+client_list.append(daemon)
 
 # Function for threading
 def recieve():
   data=''
   t = threading.currentThread()
   
-  while True:
-    try:
-      data = daemon.recv(BUFFER).decode('ascii').rstrip().split(' ')
-      if not data:
-        print("Client Disconnected!")
-        return
-      print(data)
-      app.updateData(data)
-    except Exception as e:
-      print(e)
-  print("Stopping Thread!")
+  while client_list:
+    readable, _, _ = select.select(client_list, [], [], 0)
+    for socket in readable:
+      if socket is daemon:
+        # New connection is requested!
+        connection, addr = daemon.accept()
+        client_list.append(connection)
+      else:
+        try:
+          data = socket.recv(BUFFER).decode('ascii').rstrip().split()
+        except Exception as e:
+          print(e)
+        
+        if not data:
+          # Clinet has closed the connection
+          
+          print("Client: ", socket.getpeername(), " Disconnected!")
+          socket.close()
+          client_list.remove(socket)
+        else:
+          app.updateData(data)
 
 # =====================
 # GUI Application Class
