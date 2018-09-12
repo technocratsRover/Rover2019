@@ -36,9 +36,16 @@ daemon.bind(('', PORT))
 client_list.append(daemon)
 
 
+def broadcast(msg):
+  for client in client_list:
+    if client is daemon:
+      app.updateData(msg.split(' '))
+    else:
+      client.send(msg.encode('ascii'))
+
 def closeAllClients():
-  for socket in client_list:
-    socket.close()
+  for client in client_list:
+    client.close()
 
 # Function for threading
 def recieve():
@@ -47,21 +54,23 @@ def recieve():
   
   while client_list and running:
     readable, _, _ = select.select(client_list, [], [], 0)
-    for socket in readable:
-      if socket is daemon:
+    for client in readable:
+      if client is daemon:
         # New connection is requested!
         connection, addr = daemon.accept()
         client_list.append(connection)
+        print("{}, connected!".format(str(connection)))
       else:
         try:
-          data = socket.recv(BUFFER).decode('ascii').rstrip().split()
+          data = client.recv(BUFFER).decode('ascii').rstrip().split(' ')
+          print(data)
         except Exception as e:
           print(e)
         
         if not data:
           # Clinet has closed the connection
-          print("Client: ", socket.getpeername(), " Disconnected!")
-          socket.close()
+          print("Client: ", client, " Disconnected!")
+          client.close()
           client_list.remove(socket)
         else:
           app.updateData(data)
@@ -78,16 +87,16 @@ class Application(Frame):
     self.location=[]
     self.log=[]
     self.master=master
-    self.currentLocation = None
-    self.nextLocation = None
+    self.currentLocation = 'None'
+    self.nextLocation = 'None'
     self.textLocationValue=[]
     self.pastExecutedCommand = 'None'
     self.auto=False
     self.autoState='normal'
     self.data='None'
-    self.tempData=None
-    self.phData=None
-    self.moistureData=None
+    self.tempData='None'
+    self.phData='None'
+    self.moistureData='None'
     
     master.geometry('600x400')
     self.initMenu()
@@ -150,31 +159,31 @@ class Application(Frame):
     self.textPastExeutedVal.place(x=170, y=150)
 
     # Data Recieved
-    self.textData = LabelFrame(self, text=self.data)
-    self.textData.place(x=400, y=350)
+    self.textData = Label(self, text="Recieved: "+str(self.data))
+    self.textData.place(x=30, y=170)
 
     # Location
     self.textLocationLabel = Label(self, text="Location: ")
     self.textLocationLabel.place(x=30, y=200)
 
     # Sensors
-    self.sensorFrame = LabelFrame(self, text='Sensor Data', height=150, width=200, bd=5)
-    self.sensorFrame.place(x=350, y=200)
+    self.sensorFrame = LabelFrame(self, text='Sensor Data', height=150, width=250, bd=5)
+    self.sensorFrame.place(x=300, y=200)
     #Values inside label
-    self.textTempLabel = Label(self.sensorFrame, text='Temperature: ')
-    self.textTempLabel.place(x=10, y=20)
-    self.textTempLabel = Label(self.sensorFrame, text=self.tempData)
-    self.textTempLabel.place(x=70, y=20)
-
     self.textPhLabel = Label(self.sensorFrame, text='PH: ')
-    self.textPhLabel.place(x=10, y=40)
-    self.textPhLabel = Label(self.sensorFrame, text=self.phData)
-    self.textPhLabel.place(x=70, y=40)
+    self.textPhLabel.place(x=10, y=20)
+    self.textPhVal = Label(self.sensorFrame, text=self.phData)
+    self.textPhVal.place(x=150, y=20)
+
+    self.textTempLabel = Label(self.sensorFrame, text='Temperature: ')
+    self.textTempLabel.place(x=10, y=40)
+    self.textTempVal = Label(self.sensorFrame, text=self.tempData)
+    self.textTempVal.place(x=150, y=40)
 
     self.textMoistureLabel = Label(self.sensorFrame, text='Moisture: ')
     self.textMoistureLabel.place(x=10, y=60)
-    self.textMoistureLabel = Label(self.sensorFrame, text=self.moistureData)
-    self.textMoistureLabel.place(x=70, y=60)
+    self.textMoistureVal = Label(self.sensorFrame, text=self.moistureData)
+    self.textMoistureVal.place(x=150, y=60)
 
 
   # Labels for list of locations
@@ -195,8 +204,8 @@ class Application(Frame):
     print(self.inputCommand.get())
     self.pastExecutedCommand = self.inputCommand.get()
     self.textPastExeutedVal.config(text=self.pastExecutedCommand)
-    daemon.send(self.pastExecutedCommand.encode('ascii'))
-    self.updateData(self.pastExecutedCommand.split(' '))
+    broadcast(self.pastExecutedCommand)
+    # self.updateData(self.pastExecutedCommand.split(' '))
 
   # Toggle auto or normal mode
   def toggleAuto(self):
@@ -273,7 +282,16 @@ class Application(Frame):
       err = 'Unknown command!' + str(data)
 
   def updateDataSensor(self, data):
-    pass
+    ph, temp, moisture = data
+    self.phData=ph
+    self.tempData=temp
+    self.moistureData=moisture
+
+    self.textPhVal.config(text=self.phData)
+    self.textTempVal.config(text=self.tempData)
+    self.textMoistureVal.config(text=self.moistureData)
+
+
   def updateData(self, data):
     typeOfData=data[0]
     if typeOfData=='$GPS':
@@ -297,9 +315,9 @@ class Application(Frame):
 
 
 print("Daemon Started! Waiting for service on PORT: ", PORT)
-daemon.listen(1)
-daemon, address = daemon.accept()
-print("Connection Accepted!")
+daemon.listen(5)
+# daemon, address = daemon.accept()
+# print("Connection Accepted!")
 recieveThread = threading.Thread(target=recieve)
 recieveThread.start()
 
