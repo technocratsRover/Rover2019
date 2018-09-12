@@ -55,7 +55,6 @@ def recieve():
         
         if not data:
           # Clinet has closed the connection
-          
           print("Client: ", socket.getpeername(), " Disconnected!")
           socket.close()
           client_list.remove(socket)
@@ -80,7 +79,7 @@ class Application(Frame):
     self.auto=False
     self.autoState='normal'
     self.data='None'
-
+    
     master.geometry('600x400')
     self.initMenu()
     self.infoWidget()
@@ -181,7 +180,8 @@ class Application(Frame):
     self.textAuto.config(text=self.autoState)
 
   # Update the GUI witht the provided data
-  def updateData(self, data):
+
+  def updateDataGPS(self, data):
     operation = data[0]
 
     if operation in ['INIT', 'ADD', 'CURRENT']:
@@ -242,6 +242,19 @@ class Application(Frame):
       del self.location[int(data[1])]
     else:
       err = 'Unknown command!' + str(data)
+
+  def updateDataSensor(self, data):
+    pass
+  def updateData(self, data):
+    typeOfData=data[0]
+    if typeOfData=='$GPS':
+      self.updateDataGPS(data[1:])
+    elif typeOfData=='$SENSOR':
+      self.updateDataSensor(data[1:])
+    else:
+      print('Unknown Type: ', typeOfData. " recieved!")
+      
+    
 
   # Function to handle exit
   def clientExit(self):
