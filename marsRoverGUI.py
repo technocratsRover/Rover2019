@@ -168,7 +168,7 @@ class Application(Frame):
 
     self.textPhLabel = Label(self.sensorFrame, text='PH: ')
     self.textPhLabel.place(x=10, y=40)
-    self.textPhLabel = Label(self.sensorFrame, text=self.phData)'Moisture: '
+    self.textPhLabel = Label(self.sensorFrame, text=self.phData)
     self.textPhLabel.place(x=70, y=40)
 
     self.textMoistureLabel = Label(self.sensorFrame, text='Moisture: ')
