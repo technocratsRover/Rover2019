@@ -8,6 +8,7 @@ import os
 import argparse
 import threading
 
+# ?Make the input field such that it can only edit GPS values?
 # ================
 # Global Variables
 # ================
@@ -17,6 +18,7 @@ log=[]
 queue=[]
 client_list=[]
 running=True
+
 # =============
 # System Parser
 # =============
@@ -24,7 +26,6 @@ parser = argparse.ArgumentParser(description='Connect to server')
 parser.add_argument('port', type=int)
 args = parser.parse_args()
 
-# HOST = args.hostname
 PORT = args.port
 BUFFER = 1024
 
@@ -97,6 +98,7 @@ class Application(Frame):
     self.tempData='None'
     self.phData='None'
     self.moistureData='None'
+    self.err='None'
     
     master.geometry('600x400')
     self.initMenu()
@@ -185,6 +187,9 @@ class Application(Frame):
     self.textMoistureVal = Label(self.sensorFrame, text=self.moistureData)
     self.textMoistureVal.place(x=150, y=60)
 
+    # Error
+    self.textError = Label(self, text="Error: "+self.err)
+    self.textError.place(x=300, y=360)
 
   # Labels for list of locations
   def LocationList(self):
@@ -227,10 +232,9 @@ class Application(Frame):
         values = [float(x) for x in data[1:]]
       else:
         operation = 'ERR'
-        err = 'Size of argument mismatch!'
+        self.textError.config('Size of argument mismatch!')
 
     self.data = data
-    self.textData.config(text="Recieved: "+str(self.data))
 
     if operation=='INIT':
       self.location.clear()
@@ -280,9 +284,14 @@ class Application(Frame):
       del self.location[int(data[1])]
     else:
       err = 'Unknown command!' + str(data)
+      self.textError.config(text=err)
 
   def updateDataSensor(self, data):
-    ph, temp, moisture = data
+    try:
+      ph, temp, moisture = data
+    except ValueError:
+      self.textError.config(text='$Sensor data length invalid!')
+      return
     self.phData=ph
     self.tempData=temp
     self.moistureData=moisture
@@ -293,6 +302,7 @@ class Application(Frame):
 
 
   def updateData(self, data):
+    self.textData.config(text="Recieved: "+str(self.data))
     typeOfData=data[0]
     if typeOfData=='$GPS':
       self.updateDataGPS(data[1:])
@@ -300,6 +310,7 @@ class Application(Frame):
       self.updateDataSensor(data[1:])
     else:
       print('Unknown Type: ', typeOfData, " recieved!")
+      self.textError.config(text='Unknown Type: ' + str(typeOfData) + " recieved!")
       
     
 
