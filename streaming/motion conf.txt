@@ -1,0 +1,32 @@
+stream_motion - default is off
+output frames at 1 fps when motion is not detected and rise to max stream_maxrate(default 1) when motion is detected.
+
+threshold originally 1500(no of pixels to change to detect motion)
+
+stream_quality changed to 25 (gives decent clarity for 30 fps at 640x480)
+webcontrol_localhost is off
+stream_localhost is off
+post_capture is no of frames captured after motion is detected.
+
+1. frame rate -  30
+2. width - 640
+3. height - 480
+4. minimum_frame_time(set to 0) - no of seconds between consecutive frames . when 0 capture rate is framerate.
+5. netcam_url (set to value) : described as URL to use if using a network camera. must be URL that returns single jpeg pictures or a raw jpeg stream
+6. netcam_keepalive (off) - setting for keep-alive for network socket. no idea what it means.
+7. netcam_proxy (value) - URL for proxy server
+8. netcam_tolerant_check (set to off) - set less strict jpeg checks for network cameras with a buggy/poor firmware
+9. rtsp_uses_tcp - rtsp connection uses tcp to communicate to camera.
+10. brightness, constrast, saturation, hue (0-255) range
+11. round robin settings not covered since single input from single webcam.
+12. noise level (def:32) noise threshold for motion detection
+13. noise tune - automatically tune noise threshold
+14. area detect (value) - area is split into 9 areas in 3x3 matrix. set value to start certain script when event is triggered in this area.
+15. lightswitch (0-disabled) ingnore sudden light intensity changes given as percentage.
+16. minmum motion frames (def-1) picture frames that must conatain motion at least valur specified succesively to be catagorized as true motion
+17.  pre capture(def-0): no of frames before motion detection that will be output
+18. post_capture (def-0) : no of frames to capture after motion is detected.
+19. sanpshot interval -  make automated snapshot every n seconds def is 0.
+20. stream_port : def-0 : server listens to this port for requests
+21. stream_localhost - def-off
+22. stream_maxrate : max frame rate for stream streams(def-1)

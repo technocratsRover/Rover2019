@@ -1,0 +1,31 @@
+﻿file for starting motioin then pi cam from shell script
+
+#!/bin/bash
+
+echo "pid is $$"
+sudo motion
+sudo chmod +x rpi_camera_surveillance_system.py
+/usr/bin/python3 /home/pi/rpi_camera_suveillance_system.py &
+
+NOTES : 
+
+1. chmod command is to change the python file to executable (for safety)
+2. /usr/bin/python3(or python)  is used to specify which pyhton to use. 
+3. absolute path of python file is given after the usr command to specify which python file to execute.
+
+making double_stream executable at terminal by default in each boot
+
+create file for start-up script and write needed file : - 
+sudo nano /etc/init.d/double_stream
+save and exit
+
+make script executable : -
+sudo chmod 755 /etc/init.d/double_stream
+
+register script to be run at startup : - 
+sudo update-rc.d double_stream defaults
+
+NEW PROBLEM : 
+
+lsb tags and overrides missing
+general info on net says nothing to worry about. 

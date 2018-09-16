@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1> LIVE FEED </h1>
+
+<p> live camera feed from camera in pi. uses iframe . 192.168.43.94:8081 and 8000. 320x240 . </p>
+<iframe src="http://192.168.43.94:80811" width="320" height="240" id='screen'></iframe>
+
+<button onclick="ChangeFeed()">Change Feed</button>
+
+
+<script>
+
+var feedNumber=0;
+var feeds = ['http://192.168.43.94:8081','http://192.168.43.94:8000']
+
+var changeFeed = function() { 
+	if(feedNumber===0)
+		feedNumber=1
+	else
+		feedNumber=0
+
+	var frameScreen = document.getElementById('screen')
+	frameScreen.setAttribute('src',feeds[feedNumber])
+}
+
+</script>
+</body>
+</html>
