@@ -42,12 +42,12 @@
       </div>
 
       <div class="col-6">
-        <input class="form-control" placeholder="Command" type="text">
+        <input class="form-control" placeholder="Command" type="text" id='command'>
       </div>
 
       <div class="col-2">
         <div class="text-center">
-          <button class="btn btn-info">Execute</button>
+          <button class="btn btn-info" onclick="sendCommand()">Execute</button>
         </div>
       </div>
       <div class="col-2">
@@ -62,12 +62,18 @@
     <table class="table table-hover table-dark table-bordered">
       <thead>
         <tr>
-          <td>Command Info</td>
+          <td colspan="3">Errors</td>
         </tr>
       </thead>
       <tr>
         <td>GPS Error:</td>
         <td id='gpsError'>None</td>
+        <td><button class='btn btn-danger' onclick="reset('gps')">RESET</button></td>
+      </tr>
+      <tr>
+        <td>Serial Error:</td>
+        <td id='serialError'>None</td>
+        <td><button class='btn btn-danger' onclick="reset('sensor')">RESET</button></td>
       </tr>
     </table>
   </div>
@@ -138,16 +144,13 @@
       <iframe src="http://192.168.43.94:8000/picamstream.html"></iframe>
     </div>
   </div> -->
-
-</body>
 <script>
 
   setInterval(()=>{
     $.ajax({
       type: "GET",
-      url: '/getData',
+      url:'/getGps',
       success: function(response){
-          console.log(response);
           Object.keys(response).forEach(function(key){
             var temp = document.getElementById(key)
             if(temp === null)
@@ -167,7 +170,6 @@
       type: "GET",
       url: '/getSensor',
       success: function(response){
-          console.log(response);
           Object.keys(response).forEach(function(key){
             var temp = document.getElementById(key)
             if(temp === null)
@@ -182,4 +184,30 @@
     });
   }, 1000);
 </script>
+
+<script>
+  function reset(service){
+    alert("Resetting: "+service);
+    $.ajax({
+      type: "GET",
+      url: '/reset/'+service,
+      success: function(response){
+        console.log(response);
+      }
+    });
+  }
+
+  function sendCommand(){
+    command = document.getElementById('command').value;
+    $.ajax({
+      type: 'POST',
+      url:'/executeCommand',
+      data: {'command': command},
+      success: (response)=>{
+        //console.log(response);
+      }
+    });
+  }
+</script>
+</body>
 </html>
