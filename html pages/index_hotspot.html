@@ -1,0 +1,26 @@
+﻿<!DOCTYPE html>
+<html>
+<body>
+
+<h1>LIVE FEED</h1>
+
+<p>This is the live feed from web camera attached to pi. The command used here is iframe. The source is the server "http://192.168.43.94:8081". The width and height are set as 320 and 240 respectively</p>
+
+<p>This is the live feed from camera attached to pi. The command used here is iframe. The source is the server "http://192.168.43.94:8000". The width and height are set as 340 and 255 respectively</p>
+
+<p>The Pi can handle both the cameras without overload. The resolution and quality of the picamera are much better than the webcam. </p>
+
+<p>The problem is that the picamera proccess cannot be run in the background whereas the webcam proccess can run in the background. So we would have to activate the webcam first and then the picamera. I will find if it is possible to run both in the backgorund. This method uses picamera module in pyhton.</p>
+
+<p>I found another at sentdex which provides an interface on the page as well, but it includes cloning from github.So it will be difficult to edit of something goes wrong.  Also there are 7 .sh files of almost 300 lines or more and 1 .sh file of thousands of lines and I just started basics of shell scripting </p>
+<p>TO DO: </p>
+<p>1. making picamera run in background </p>
+<p>2. creating shell script to set up and run procceses by single command </p>
+
+<p> File for streaming both together - double_stream.sh - runs motion first then picam. working fine. </p>
+
+<iframe src="http://192.168.43.94:8081" width="320" height="240"></iframe>
+<iframe src="http://192.168.43.94:8000/picamstream.html" width="340" height="255"></iframe>
+
+</body>
+</html>
