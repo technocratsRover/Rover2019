@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Mars Rovers</title>
+  </div>
+  </div>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" media="screen" href="/static/css/bootstrap.min.css" />
+  <script src="/static/lib/jQuery.min.js"></script>
+  <script src="/static/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="#">Mars Rover</a>
+      <!-- <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button> -->
+      <!-- <div class="collapse navbar-collapse" id="navbarNavAltMarkup"> -->
+      <div class="navbar-nav mr-auto">
+        <a class="nav-item nav-link" href="#">Technocrats</a>
+      </div>
+      <!-- </div> -->
+    </div>
+  </nav>
+
+
+  <!-- Form -->
+  <form class="container mt-4">
+    <!-- Command Execution Input -->
+    <div class="row">
+      <div class="col-2">
+        <select class="form-control">
+          <option>GPS</option>
+          <option>Sensor</option>
+        </select>
+      </div>
+
+      <div class="col-6">
+        <input class="form-control" placeholder="Command" type="text">
+      </div>
+
+      <div class="col-2">
+        <div class="text-center">
+          <button class="btn btn-info">Execute</button>
+        </div>
+      </div>
+      <div class="col-2">
+        <div class="text-right">
+          <button class="btn btn-success">Auto</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="container mt-4">
+    <table class="table table-hover table-dark table-bordered">
+      <thead>
+        <tr>
+          <td>Command Info</td>
+        </tr>
+      </thead>
+      <tr>
+        <td>GPS Error:</td>
+        <td id='gpsError'>None</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Tables of data -->
+  <div class="container mt-4">
+    <div class="row">
+      <!-- GPS Data -->
+      <div class="col-6">
+        <table class="table table-bordered gpsTable table-striped table-hover">
+          <thead class="thead-dark">
+            <tr class="bg-dark text-light">
+              <td colspan="2">GPS Data</td>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr>
+              <td class='gpsDataHeading' rowspan="2">Current: </td>
+              <td class="gpsText" id='currentLocationLat'></td>
+            </tr>
+            <tr>
+              <td id="currentLocationLon">None</td>
+            </tr>
+            <tr>
+              <td class='gpsDataHeading' rowspan="2">Next: </td>
+              <td class='gpsText' >None</td>
+            </tr>
+            <tr>
+              <td>None</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Sensor Value -->
+      <div class="col-6">
+        <table class="table table-bordered table-striped">
+          <thead>
+            <tr class="bg-dark text-white">
+              <td colspan="2">Sensor Value</td>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr>
+              <td>PH: </td>
+              <td id="sensorDataPH">None </td>
+            </tr>
+            <tr>
+              <td>Temperature: </td>
+              <td id="sensorDataTemp">None </td>
+            </tr>
+            <tr>
+              <td>Moisture: </td>
+              <td id="sensorDataMoisture">None </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- <div class="container">
+    <h1 class="text-muted">Cam feed</h1>
+    <hr>
+    <div class="frame">
+      <iframe src="http://192.168.43.94:8000/picamstream.html"></iframe>
+    </div>
+  </div> -->
+
+</body>
+<script>
+
+  setInterval(()=>{
+    $.ajax({
+      type: "GET",
+      url: '/getData',
+      success: function(response){
+          console.log(response);
+          Object.keys(response).forEach(function(key){
+            var temp = document.getElementById(key)
+            if(temp === null)
+              console.log(key+" Doesnt exist!")
+            else
+              temp.innerText=response[key];
+          });
+      },
+      fail: function(){
+        console.log("FAiled!")
+      }
+    });
+  }, 1000);
+
+  setInterval(()=>{
+    $.ajax({
+      type: "GET",
+      url: '/getSensor',
+      success: function(response){
+          console.log(response);
+          Object.keys(response).forEach(function(key){
+            var temp = document.getElementById(key)
+            if(temp === null)
+              console.log(key+" Doesnt exist!")
+            else
+              temp.innerText=response[key];
+          });
+      },
+      fail: function(){
+        console.log("FAiled!")
+      }
+    });
+  }, 1000);
+</script>
+</html>
