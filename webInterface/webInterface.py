@@ -1,7 +1,4 @@
-import sys
-import os
 import gps
-import time
 import serial
 from flask import Flask, render_template, request, jsonify
 # import threading
@@ -24,6 +21,7 @@ isAuto = False
 initialized = False
 queue = []
 location=[]
+gpsStarted = False
 
 currentLocation=dict({})
 nextLocation='NoR'
@@ -43,6 +41,7 @@ def gpsData():
 	print(report)
 	response['report']=dict({'dat':"YES"})
 	if report['class']=='TPV':
+		gpsStarted=True
 		gpsErr='None'
 		if hasattr(report, 'time') and hasattr(report, 'lon') and hasattr(report, 'lat'):
 				currentLocation['lon']=report.lon
@@ -53,7 +52,8 @@ def gpsData():
 	else:
 		currentLocation['lat']='Nor'
 		currentLocation['lon']='Nor'
-		gpsErr='GPS is not Recieving values'
+		if not gpsStarted:
+			gpsErr='GPS has not initialized! Check connectivity'
 
 	response['textPastCommand']=textPastCommand
 	response['gpsError']=gpsErr
