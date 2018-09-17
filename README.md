@@ -19,5 +19,6 @@ The HTML page _frame divide testing_ uses frame to divide the page into three pa
 
 #### OBJECT DETECTION
 
+#### GPS
 
 #### WEB INTERFACE
