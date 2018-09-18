@@ -8,12 +8,12 @@ from flask import Flask, render_template, request, jsonify
 # =========
 isAuto = False
 initialized = False
-queue = []
+locationsPassed=[]
 location=[]
 gpsStarted = False
 
 currentLocation=dict({'lat': 'None', 'lon':'None'})
-nextLocation='NoR'
+nextLocation=dict({'lat': 'None', 'lon':'None'})
 textPastCommand='NoR'
 err='None'
 gpsErr='None'
@@ -54,6 +54,10 @@ connectSerial()
 def sendData():
 	return render_template("home.html")
 
+@app.route("/frameDivide")
+def sendFrame():
+	return render_template("frameDivide.html")
+
 @app.route("/getGps", methods=['GET'])
 def gpsData():
 	global initialized, gpsErr, session
@@ -80,6 +84,7 @@ def gpsData():
 	return jsonify(
 		currentLocationLat=currentLocation['lat'],
 		currentLocationLon=currentLocation['lon'],
+		locationListBody=location,
 		report=report,
 		gpsError=gpsErr
 		)
@@ -98,29 +103,49 @@ def returnSensorData():
 
 @app.route("/executeCommand", methods=["POST"])
 def executeCommand():
-	command = request.json['command'].split(" ")
+	global location, commandError
+	command=request.json['command'].split(' ')
+	print(command)
 	operation = command[0]
+	values=None
 	if operation in ["ADD"]:
 		values = command[1:]
 	
 	if operation=='ADD':
-		location.append(values)
+		if not (values in location):
+			location.append(values)
+			commandError='None'
+		else:
+			commandError='Location already exists!'
+	elif operation=="CLEAR":
+		location=[]
+		commandError="None"
 	else:
 		commandError = 'Unknown Command!'
 	
-	return jsonify(locations=location, commandError=commandError)
+	return jsonify(locationListBody=location, commandError=commandError)
 
 @app.route("/reset/<service>", methods=['GET'])
 def reset(service):
+	global commandError
 	if service=='gps':
 		print("Reset GPS")
 		connectGPS()
 	elif service=='serial':
 		print("Reset Serial")
 		connectSerial()
+	elif service=='command':
+		commandError='None'
 	else:
 		pass
-	return jsonify(value='False')
+	return jsonify(value='False', commandError=commandError)
 		
+@app.route("/delLocation/<index>")
+def deleteLocation(index):
+	index=int(index)
+	global location
+	del location[index]
+	return jsonify(locationListBody=location)
+
 app.debug=True
-app.run('', debug=True)
+app.run('', debug=True,port=8000)

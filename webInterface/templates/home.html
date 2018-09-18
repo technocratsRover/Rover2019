@@ -14,6 +14,8 @@
 </head>
 
 <body>
+  <!-- TODO: Add div to flash messages by using bootstrap -->
+  <!-- TODO: Make it so that in autonomous mode, no data is sent -->
   <!-- Navbar -->
   <nav class="navbar navbar-dark bg-dark">
     <div class="container">
@@ -31,13 +33,13 @@
 
 
   <!-- Form -->
-  <form class="container mt-4">
+  <div class="container mt-4">
     <!-- Command Execution Input -->
     <div class="row">
       <div class="col-2">
         <select class="form-control">
           <option>GPS</option>
-          <option>Sensor</option>
+          <!-- <option>Sensor</option> -->
         </select>
       </div>
 
@@ -47,19 +49,20 @@
 
       <div class="col-2">
         <div class="text-center">
-          <button class="btn btn-info" onclick="sendCommand()">Execute</button>
+          <button class="btn btn-info btn-block" onclick="sendCommand()">Execute</button>
         </div>
       </div>
       <div class="col-2">
         <div class="text-right">
-          <button class="btn btn-success">Auto</button>
+          <button class="btn btn-danger" id="autoBtn" onclick="toggleAuto()">Auto</button>
         </div>
       </div>
     </div>
-  </form>
+  </div>
 
+  <!-- Error Table -->
   <div class="container mt-4">
-    <table class="table table-hover table-dark table-bordered">
+    <table class="table table-hover table-dark table-bordered table-sm btn-group-sm">
       <thead>
         <tr>
           <td colspan="3">Errors</td>
@@ -68,32 +71,38 @@
       <tr>
         <td>GPS Error:</td>
         <td id='gpsError'>None</td>
-        <td><button class='btn btn-danger' onclick="reset('gps')">RESET</button></td>
+        <td class="text-center"><button class='btn btn-danger btn-sm' onclick="reset('gps')">RESET</button></td>
       </tr>
       <tr>
         <td>Serial Error:</td>
         <td id='serialError'>None</td>
-        <td><button class='btn btn-danger' onclick="reset('sensor')">RESET</button></td>
+        <td class="text-center"><button class='btn btn-danger btn-sm' onclick="reset('sensor')">RESET</button></td>
+      </tr>
+      <tr>
+        <td>Command Error:</td>
+        <td id='commandError'>None</td>
+        <td class="text-center"><button class='btn btn-danger btn-sm' onclick="reset('command')">RESET</button></td>
       </tr>
     </table>
   </div>
 
-  <!-- Tables of data -->
-  <div class="container mt-4">
+  <!-- Tables of data and location-->
+  <div class="container mt-2">
     <div class="row">
+
       <!-- GPS Data -->
       <div class="col-6">
-        <table class="table table-bordered gpsTable table-striped table-hover">
+        <table class="table table-bordered gpsTable table-striped table-hover table-sm">
           <thead class="thead-dark">
             <tr class="bg-dark text-light">
               <td colspan="2">GPS Data</td>
             </tr>
           </thead>
-
+            
           <tbody>
             <tr>
               <td class='gpsDataHeading' rowspan="2">Current: </td>
-              <td class="gpsText" id='currentLocationLat'></td>
+              <td class="gpsText" id='currentLocationLat'>None</td>
             </tr>
             <tr>
               <td id="currentLocationLon">None</td>
@@ -109,9 +118,27 @@
         </table>
       </div>
 
+      <!-- Location List -->
+      <div class="col-6">
+        <table class="table table-borderless table-hover table-sm table-striped">
+          <thead class="bg-dark text-white">
+            <tr>
+              <td colspan="2">Locations</td>
+              <td class="text-center"><button class="btn btn-danger btn-sm" onclick="clearLocations()">Clear</button></td>
+            </tr>
+          </thead>
+          <tbody id="locationListBody">
+            
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+    <div class="row">
+
       <!-- Sensor Value -->
       <div class="col-6">
-        <table class="table table-bordered table-striped">
+        <table class="table table-bordered table-striped table-sm">
           <thead>
             <tr class="bg-dark text-white">
               <td colspan="2">Sensor Value</td>
@@ -134,50 +161,49 @@
           </tbody>
         </table>
       </div>
+
     </div>
   </div>
 
-  <!-- <div class="container">
-    <h1 class="text-muted">Cam feed</h1>
-    <hr>
-    <div class="frame">
-      <iframe src="http://192.168.43.94:8000/picamstream.html"></iframe>
-    </div>
-  </div> -->
 <script>
+// AJAX Scripts
+function updateValues(response){
+  Object.keys(response).forEach(function(key){
+    var temp = document.getElementById(key);
+    if(temp === null)
+      console.log(key+" Doesnt exist!") 
+    else if(key=="locationListBody"){
+      var html='';
+      let i=0;
+      response[key].forEach(function(location){
+        location=String(location).replace(',','</td><td>');
+        html+='<tr class="text-center"><td>'+location+'</td><td><button type="button" class="close btn btn-block" value="'+i+'" onclick="delLocation(this.value)">&times;</button></td></tr>';
+        i++;
+      });
 
+      temp.innerHTML=html;
+    }
+    else
+      temp.innerText=response[key];
+  });
+}
+  // INterval for GPS Data
   setInterval(()=>{
     $.ajax({
       type: "GET",
       url:'/getGps',
-      success: function(response){
-          Object.keys(response).forEach(function(key){
-            var temp = document.getElementById(key)
-            if(temp === null)
-              console.log(key+" Doesnt exist!")
-            else
-              temp.innerText=response[key];
-          });
-      },
+      success: updateValues,
       fail: function(){
         console.log("FAiled!")
       }
     });
   }, 1000);
-
+  // Interval for sensor Data
   setInterval(()=>{
     $.ajax({
       type: "GET",
       url: '/getSensor',
-      success: function(response){
-          Object.keys(response).forEach(function(key){
-            var temp = document.getElementById(key)
-            if(temp === null)
-              console.log(key+" Doesnt exist!")
-            else
-              temp.innerText=response[key];
-          });
-      },
+      success: updateValues,
       fail: function(){
         console.log("FAiled!")
       }
@@ -186,27 +212,71 @@
 </script>
 
 <script>
+  var isAuto=false;
   function reset(service){
-    alert("Resetting: "+service);
+    // alert("Resetting: "+service);
+    if(service=='gps')
+      document.getElementById('gpsError').innerText='Resetting!';
+    else if(service=='sensor')
+      document.getElementById('serialError').innerText='Resetting!';
+    else if(service=='command')
+      document.getElementById('commandError').innerText='Resetting!';
     $.ajax({
       type: "GET",
       url: '/reset/'+service,
-      success: function(response){
-        console.log(response);
-      }
+      success: updateValues
     });
   }
 
   function sendCommand(){
-    command = document.getElementById('command').value;
+    var command = document.getElementById('command').value;
+    console.log(command);
     $.ajax({
       type: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({"command": command}),
+      dataType: 'json',
       url:'/executeCommand',
-      data: {'command': command},
-      success: (response)=>{
-        //console.log(response);
-      }
+      success: updateValues
     });
+  }
+
+  function toggleAuto(){
+    isAuto=!isAuto;
+    if(isAuto){
+      document.getElementById('command').setAttribute('disabled','true');
+      document.getElementById('autoBtn').classList.remove('btn-danger');
+      document.getElementById('autoBtn').classList.add('btn-success');
+    }
+    else{
+      document.getElementById('command').removeAttribute('disabled');
+      document.getElementById('autoBtn').classList.remove('btn-success');
+      document.getElementById('autoBtn').classList.add('btn-danger');
+    }
+  }
+
+  function delLocation(index){
+    console.log(index);
+    $.ajax({
+      type:"GET",
+      url:"/delLocation/"+index,
+      success: updateValues,
+      fail: ()=>{console.log("Ajax failed!");}
+    });
+  }
+
+
+  function clearLocations(){
+    var retVal = confirm("Confirm clear action!");
+    if(retVal)
+      $.ajax({
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({"command": "CLEAR"}),
+        dataType: 'json',
+        url:'/executeCommand',
+        success: updateValues
+      });
   }
 </script>
 </body>
