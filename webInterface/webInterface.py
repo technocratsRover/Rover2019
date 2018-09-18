@@ -6,24 +6,35 @@ from flask import Flask, render_template, request, jsonify
 # =========
 # Variables
 # =========
+# Boolean Variables / Flags
 isAuto = False
 initialized = False
-locationsPassed=[]
-location=[]
 gpsStarted = False
 initializedNext=False
+# Object initializations
+arduino=None
+session=None
+# Variables Regarding locations
+locationsPassed=[]
+location=[]
 currentLocation=dict({'lat': 'None', 'lon':'None'})
 nextLocation=dict({'lat': 'None', 'lon':'None'})
 nextLocationIndex=1
-textPastCommand='NoR'
+# Variables regarding error
+# textPastCommand='NoR' # !Remove this
 err='None'
 gpsErr='None'
 arduinoErr='None'
+# Dictionary to store response
 response = dict()
-arduino=None
-session=None
+
+
+# Set up flask
 app = Flask(__name__)
 
+# ====================
+# Connecting Functions
+# ====================
 def connectSerial():
 	global arduinoErr, arduino
 	try:
@@ -33,13 +44,10 @@ def connectSerial():
 		arduinoErr=str(e)
 		response['serialError']=arduinoErr
 
-
-# ==========
-# GPS Socket
-# ==========
 def connectGPS():
 	global gpsErr
 	try:
+		# GPS Socket
 		session = gps.gps("localhost", "2947")
 		session.stream(gps.WATCH_ENABLE | gps.WATCH_NEWSTYLE)
 		gpsErr='None'
@@ -51,35 +59,41 @@ def connectGPS():
 connectGPS()
 connectSerial()
 
-@app.route("/")
+# ======
+# Routes
+# ======
+@app.route("/")																			# Home page
 def sendData():
 	return render_template("home.html")
 
-@app.route("/frameDivide")
+@app.route("/frameDivide")													# Cam Page
 def sendFrame():
 	return render_template("frameDivide.html")
 
-@app.route("/getGps", methods=['GET'])
+@app.route("/getGps", methods=['GET'])							# Ajax route to send GPS Data when requested
 def gpsData():
 	global initialized, gpsErr, session, nextLocationIndex
 	if gpsErr=='None':
 		report = session.next()
-		response['report']=dict({'dat':"YES"})
+		response['report']=dict({'dat':"YES"})	#! Remove this, this is only to check
 		if report['class']=='TPV':
 			gpsStarted=True
 			gpsErr='None'
 			if hasattr(report, 'time') and hasattr(report, 'lon') and hasattr(report, 'lat'):
 					currentLocation['lon']=report.lon
 					currentLocation['lat']=report.lat
-					if not initialized:		
+					if not initialized:	#? Forgot what it does
 						initialized=True
 						location.append([report.lon, report.lat])
+					# If the gps coordinate is at the next location, set the next location to next location
+					#! A try catch is required here
 					if abs(currentLocation['lon']-nextLocation['lat'])<2 and len(location)>2:
 						locationsPassed.append(nextLocationIndex)
 						nextLocationIndex+=1
 						nextLocation['lat']=location[nextLocationIndex][0]
 						nextLocation['lat']=location[nextLocationIndex][1]
 		else:
+			# GPS is not getting data
 			currentLocation['lat']='Nor'
 			currentLocation['lon']='Nor'
 			if not gpsStarted:
@@ -87,6 +101,7 @@ def gpsData():
 	else:
 		report=dict({})
 
+	#! Add nextLocation lat and lon as well
 	return jsonify(
 		currentLocationLat=currentLocation['lat'],
 		currentLocationLon=currentLocation['lon'],
@@ -95,7 +110,7 @@ def gpsData():
 		gpsError=gpsErr
 		)
 	
-@app.route("/getSensor", methods=['GET', 'POST'])
+@app.route("/getSensor", methods=['GET', 'POST'])		# Ajax route to send sensor data #! Remove POST Method?
 def returnSensorData():
 	ph='NoR'
 	temp='NoR'
@@ -107,7 +122,7 @@ def returnSensorData():
 		ph, temp, moisture = data
 	return jsonify(sensorDataPH=ph, sensorDataTemp=temp, sensorDataMoisture=moisture, serialError=arduinoErr)
 
-@app.route("/executeCommand", methods=["POST"])
+@app.route("/executeCommand", methods=["POST"])			# Ajax route to execute commands
 def executeCommand():
 	global location, commandError, initializedNext
 	command=request.json['command'].split(' ')
@@ -135,7 +150,7 @@ def executeCommand():
 	
 	return jsonify(locationListBody=location, commandError=commandError)
 
-@app.route("/reset/<service>", methods=['GET'])
+@app.route("/reset/<service>", methods=['GET'])			# Ajax route to reset errors and devices
 def reset(service):
 	global commandError
 	if service=='gps':
@@ -157,5 +172,7 @@ def deleteLocation(index):
 	del location[index]
 	return jsonify(locationListBody=location)
 
+
+# Run the app
 app.debug=True
 app.run('', debug=True,port=8000)
