@@ -11,9 +11,10 @@ initialized = False
 locationsPassed=[]
 location=[]
 gpsStarted = False
-
+initializedNext=False
 currentLocation=dict({'lat': 'None', 'lon':'None'})
 nextLocation=dict({'lat': 'None', 'lon':'None'})
+nextLocationIndex=1
 textPastCommand='NoR'
 err='None'
 gpsErr='None'
@@ -60,7 +61,7 @@ def sendFrame():
 
 @app.route("/getGps", methods=['GET'])
 def gpsData():
-	global initialized, gpsErr, session
+	global initialized, gpsErr, session, nextLocationIndex
 	if gpsErr=='None':
 		report = session.next()
 		response['report']=dict({'dat':"YES"})
@@ -73,6 +74,11 @@ def gpsData():
 					if not initialized:		
 						initialized=True
 						location.append([report.lon, report.lat])
+					if abs(currentLocation['lon']-nextLocation['lat'])<2 and len(location)>2:
+						locationsPassed.append(nextLocationIndex)
+						nextLocationIndex+=1
+						nextLocation['lat']=location[nextLocationIndex][0]
+						nextLocation['lat']=location[nextLocationIndex][1]
 		else:
 			currentLocation['lat']='Nor'
 			currentLocation['lon']='Nor'
@@ -103,7 +109,7 @@ def returnSensorData():
 
 @app.route("/executeCommand", methods=["POST"])
 def executeCommand():
-	global location, commandError
+	global location, commandError, initializedNext
 	command=request.json['command'].split(' ')
 	print(command)
 	operation = command[0]
@@ -115,6 +121,10 @@ def executeCommand():
 		if not (values in location):
 			location.append(values)
 			commandError='None'
+			if initializedNext==False and len(location)>2:
+				nextLocation['lat']=location[nextLocationIndex][0]
+				nextLocation['lat']=location[nextLocationIndex][1]
+				initializedNext=True
 		else:
 			commandError='Location already exists!'
 	elif operation=="CLEAR":
