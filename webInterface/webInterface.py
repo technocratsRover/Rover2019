@@ -1,5 +1,8 @@
 import gps
 import serial
+import nanpy
+import collections
+from nanpy import ArduinoApi, SerialManager
 from flask import Flask, render_template, request, jsonify
 # import threading
 
@@ -14,6 +17,7 @@ initializedNext=False
 # Object initializations
 arduino=None
 session=None
+Motor = None
 # Variables Regarding locations
 locationsPassed=[]
 location=[]
@@ -27,6 +31,25 @@ gpsErr='None'
 arduinoErr='None'
 # Dictionary to store response
 response = dict()
+
+# ===============
+# Motor Variables
+# ===============
+# FRONT BACK RIGHT LEFT
+motorState = collections.OrderedDict({
+	'front': False, 
+	'back': False, 
+	'left': False,
+	'right': False
+})
+# The motors pins are pinOffset + 0, pinOffset + 1, pinOffset + 2, pinOffset + 3
+pinOffset = 7
+
+def resetAllMotors():
+	for i in motorState.keys():
+		motorState[i]=False
+	for i in range(len(motorState)):
+		Motor.digitalWrite(pinOffset+i, Motor.LOW)
 
 
 # Set up flask
@@ -55,10 +78,29 @@ def connectGPS():
 		gpsErr=str(e)
 		response['gpsError']=gpsErr
 
+def connectMotor():
+	global Motor
+	try:
+		connection = SerialManager("/dev/ttyUSB0")
+		Motor = ArduinoApi(connection=connection)
+	except Exception as e:
+		print("Failed to connect to arduino!", e)
+
+
+# def motor():
+# 	print("Motor thread Started!")
+# 	while True:
+# 		for i in range(len(motorState)):
+# 			if motorState[i]:
+# 				a.digitalWrite(pinOffset+i, a.HIGH)
+# 			else:
+# 				a.digitalWrite(pinOffset+i, a.LOW)
+
 # Initial Connection
 connectGPS()
 connectSerial()
-
+connectMotor()
+# Motor.digitalWrite(7, Motor.HIGH)
 # ======
 # Routes
 # ======
@@ -165,7 +207,30 @@ def reset(service):
 		pass
 	return jsonify(value='False', commandError=commandError)
 		
-@app.route("/delLocation/<index>")
+@app.route("/setMotors", methods=["GET"])
+def runMotors():
+	err='None'
+	# resetAllMotors()
+	try:
+		# print(request.args)
+		# if request.args.get('reset'):
+		# 	resetAllMotors()
+		# 	return jsonify(err="Motor Reset")
+		resetAllMotors()
+		for i in request.args:
+			if request.args.get(i)=='true':
+				motorState[i]=True
+				print(motorState)
+				pin = pinOffset + int(list(motorState.keys()).index(i))
+				print("Pin: ", pin)
+				Motor.digitalWrite(pin, Motor.HIGH)
+		return jsonify(motorState)
+	except keyError:
+		print("RESET")
+		resetAllMotors()
+		return jsonify(err="Invalid motor Number, Valid options: [0, 1, 2, 3, 4]")
+
+@app.route("/delLocation/<index>")									# Ajax method to delete datas
 def deleteLocation(index):
 	index=int(index)
 	global location
