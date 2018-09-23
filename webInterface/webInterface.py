@@ -212,11 +212,12 @@ def runMotors():
 	err='None'
 	# resetAllMotors()
 	try:
-		# print(request.args)
-		# if request.args.get('reset'):
-		# 	resetAllMotors()
-		# 	return jsonify(err="Motor Reset")
 		resetAllMotors()
+		print(request.args)
+		if request.args.get('reset'):
+			resetAllMotors()
+			return jsonify(err="Motor Reset")
+		
 		for i in request.args:
 			if request.args.get(i)=='true':
 				motorState[i]=True
