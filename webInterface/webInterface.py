@@ -61,7 +61,7 @@ app = Flask(__name__)
 def connectSerial():
 	global arduinoErr, arduino
 	try:
-		arduino=serial.Serial("/dev/ttyACM0", 9600)
+		arduino=serial.Serial("/dev/ttyUSB0", 9600)
 		arduinoErr='None'
 	except Exception as e:
 		arduinoErr=str(e)
@@ -81,7 +81,7 @@ def connectGPS():
 def connectMotor():
 	global Motor
 	try:
-		connection = SerialManager("/dev/ttyUSB0")
+		connection = SerialManager("/dev/ttyACM0") #CHANGE THIS
 		Motor = ArduinoApi(connection=connection)
 	except Exception as e:
 		print("Failed to connect to arduino!", e)
