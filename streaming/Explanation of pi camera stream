@@ -1,0 +1,346 @@
+# Web streaming example
+# Source code from the official PiCamera package
+# http://picamera.readthedocs.io/en/latest/recipes2.html#web-streaming
+
+
+PROCCESS______________________________________________________________________________________________________________________
+
+record from pi camera. 
+store it in buffer as bytes.
+truncate the top of the buffer and add the data to the variable frame.
+depending on the path of the request handler manipulate the frame data and act on the request handler.(EXPLAINED AHEAD)
+
+
+
+CAPTURING FRAMES_______________________________________________________________________________________________________________
+
+
+my script launches the streaming with -
+
+with picamera.PiCamera(resolution='640x480', framerate=24) as camera:
+    output = StreamingOutput()
+camera.start_recording(output, format='mjpeg')
+
+then with StreamingOutput , bytes are captured, if the file begins with  \xff\xd8 then it is chopped off using truncate 
+and the rest of the data is copies to variable frame , and then the contents of frame are written into a file stream.mjpeg using
+wfile variable. This file is then used as the image source for the html page. The framerate is 24 . 
+
+IMPORTS________________________________________________________________________________________________________________________
+
+import io
+import picamera
+import logging
+import socketserver
+from threading import Condition
+from http import server
+
+
+HTML WEBPAGE____________________________________________________________________________________________________________________
+
+PAGE="""\
+<html>
+<head>
+<title>Raspberry Pi - Surveillance Camera</title>
+</head>
+<body>
+<center><h1>Raspberry Pi - Surveillance Camera</h1></center>
+<center><img src="stream.mjpg" width="640" height="480"></center>
+</body>
+</html>
+"""
+
+
+CODE OF STREAMING OUTPUT_______________________________________________________________________________________________________
+
+
+$JPEG = "\xFF\xD8\xFF"
+$GIF  = "GIF"
+$PNG  = "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a"
+$BMP  = "BM"
+$PSD  = "8BPS"
+$SWF  = "FWS"
+
+
+# Initially the frame is empty . We take bytes from the feed of the PiCamera. 
+# If the bytes(new frame buffer) begin with \xff\xd8 (indicates type of binary image data which will imply that the previous buffer was
+# also an image) we cut header off the buffer.
+# copy buffer content after truncate to the frame variable.
+# Notify new frame availibility to all the clients.
+# Re-write buffer with new buf content (includes \xff\xd8 header which will be cut off in the next iteration) .
+# Basic Process Of Write : Write contents of current buffer to frame to be written to wfile and set up next buffer for the proccess.
+
+class StreamingOutput(object):
+    def __init__(self):
+        self.frame = None
+        self.buffer = io.BytesIO()
+        self.condition = Condition()
+
+    def write(self, buf):
+        if buf.startswith(b'\xff\xd8'):
+            # New frame, copy the existing buffer's content and notify all clients it's available
+            self.buffer.truncate()
+            with self.condition:
+                self.frame = self.buffer.getvalue()
+                self.condition.notify_all()
+            self.buffer.seek(0)
+        return self.buffer.write(buf)
+       
+
+INFO OF FUNCITONS USED NEXT_________________________________________________________________________________________________________
+
+send_error(code[, message])
+Sends and logs a complete error reply to the client. The numeric code specifies the HTTP error code, with message as optional, 
+more specific text. A complete set of headers is sent, followed by text composed using the error_message_format class variable.
+The body will be empty if the method is HEAD or the response code is one of the following: 1xx, 204 No Content, 205 Reset Content,
+304 Not Modified.
+
+send_response(code[, message])
+Sends a response header and logs the accepted request. The HTTP response line is sent, followed by Server and Date headers.
+The values for these two headers are picked up from the version_string() and date_time_string() methods, respectively.
+
+send_header(keyword, value)
+Writes a specific HTTP header to the output stream. keyword should specify the header keyword, with value specifying its value.
+
+
+200 OK
+Standard response for successful HTTP requests. The actual response will depend on the request method used. In a GET request,
+the response will contain an entity corresponding to the requested resource. In a POST request, the response will contain an
+entity describing or containing the result of the action.[9]
+
+301 Moved Permanently
+This and all future requests should be directed to the given URI.[21]
+
+
+CODE OF UPLOADING TO HTML PAGE (STREAMING HANDLER) _________________________________________________________________________________
+
+# the path is the path of the output in the request handler  - 
+
+class StreamingHandler(server.BaseHTTPRequestHandler):
+    def do_GET(self):
+    if self.path == '/':
+
+# the path is nil , so the response of http code 301 is sent that is any content sent here #will be redirected to the location mentioned
+# by the location keyword and the location given  
+
+            self.send_response(301)
+            self.send_header('Location', '/index.html')
+            self.end_headers()
+        elif self.path == '/index.html':
+
+# the path is index.html, http code 200 signifies that it is ok. The content type and 
+# length are specified for the request handler. encode the page using utf-8 and then write #it in the wfile .
+# UTF-8 is a variable width character encoding capable of encoding all #1,112,064 valid code points in Unicode using one to four 
+# 8-bit bytes. 
+
+            content = PAGE.encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Content-Length', len(content))
+            self.end_headers()
+            self.wfile.write(content)
+
+# the path is stream.mjpg, http code 200 signifies that it is ok. The handler is told that the age of the data is 0(just captured).
+# The cache-control and pragma are set to no cache as no storage is required. We try to write the frame in the wfile and send headers 
+# to the handler about the content type and length. if the client is removed we issue a warning. 
+
+        elif self.path == '/stream.mjpg':
+            self.send_response(200)
+            self.send_header('Age', 0)
+            self.send_header('Cache-Control', 'no-cache, private')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=FRAME')
+            self.end_headers()
+	    try:
+                while True:
+                    with output.condition:
+                        output.condition.wait()
+                        frame = output.frame
+                    self.wfile.write(b'--FRAME\r\n')
+                    self.send_header('Content-Type', 'image/jpeg')
+                    self.send_header('Content-Length', len(frame))
+                    self.end_headers()
+                    self.wfile.write(frame)
+                    self.wfile.write(b'\r\n')
+            except Exception as e:
+                logging.warning(
+                    'Removed streaming client %s: %s',
+                    self.client_address, str(e))
+        else:
+            self.send_error(404)
+            self.end_headers()
+
+
+CODE OF USING CAMERA____________________________________________________________________________________________________
+
+with picamera.PiCamera(resolution='640x480', framerate=24) as camera:
+    output = StreamingOutput()
+    
+    #Uncomment the next line to change your Pi's Camera rotation (in degrees)
+    #camera.rotation = 90
+    
+    camera.start_recording(output, format='mjpeg')
+    try:
+        address = ('', 8000)
+        server = StreamingServer(address, StreamingHandler)
+        server.serve_forever()
+        
+sets the resolution and framerate. 
+start recording in mepeg format.
+set the address ipaddress:8000(port).
+create Server using address and handler.
+
+
+HEADERS IN SEND_HEADERS()_____________________________________________________________________________________________________________
+
+14.30 Location
+The Location response-header field is used to redirect the recipient to a location other than the Request-URI for completion of the
+request or identification of a new resource. For 201 (Created) responses, the Location is that of the new resource which was created
+by the request. For 3xx responses, the location SHOULD indicate the server's preferred URI for automatic redirection to the resource.
+The field value consists of a single absolute URI.
+
+       Location       = "Location" ":" absoluteURI
+An example is:
+
+       Location: http://www.w3.org/pub/WWW/People.html
+      Note: The Content-Location header field (section 14.14) differs
+      from Location in that the Content-Location identifies the original
+      location of the entity enclosed in the request. It is therefore
+      possible for a response to contain header fields for both Location
+      and Content-Location. Also see section 13.10 for cache
+      requirements of some methods.
+
+
+
+14.6 Age
+      The Age response-header field conveys the sender's estimate of the
+      amount of time since the response (or its revalidation) was
+      generated at the origin server. A cached response is "fresh" if
+      its age does not exceed its freshness lifetime. Age values are
+      calculated as specified in section 13.2.3.
+           Age = "Age" ":" age-value
+           age-value = delta-seconds
+      Age values are non-negative decimal integers, representing time in
+      seconds.
+      If a cache receives a value larger than the largest positive
+      integer it can represent, or if any of its age calculations
+      overflows, it MUST transmit an Age header with a value of
+      2147483648 (2^31). An HTTP/1.1 server that includes a cache MUST
+      include an Age header field in every response generated from its
+      own cache. Caches SHOULD use an arithmetic type of at least 31
+      bits of range.
+
+
+
+14.9 Cache-Control
+The Cache-Control general-header field is used to specify directives that MUST be obeyed by all caching mechanisms along the
+request/response chain. The directives specify behavior intended to prevent caches from adversely interfering with the request 
+or response. These directives typically override the default caching algorithms. Cache directives are unidirectional in that the 
+presence of a directive in a request does not imply that the same directive is to be given in the response.
+
+      Note that HTTP/1.0 caches might not implement Cache-Control and
+      might only implement Pragma: no-cache (see section 14.32).
+Cache directives MUST be passed through by a proxy or gateway application, regardless of their significance to that application,
+since the directives might be applicable to all recipients along the request/response chain. It is not possible to specify a
+cache- directive for a specific cache.
+
+    Cache-Control   = "Cache-Control" ":" 1#cache-directive
+    cache-directive = cache-request-directive
+         | cache-response-directive
+    cache-request-directive =
+           "no-cache"                          ; Section 14.9.1
+         | "no-store"                          ; Section 14.9.2
+         | "max-age" "=" delta-seconds         ; Section 14.9.3, 14.9.4
+         | "max-stale" [ "=" delta-seconds ]   ; Section 14.9.3
+         | "min-fresh" "=" delta-seconds       ; Section 14.9.3
+         | "no-transform"                      ; Section 14.9.5
+         | "only-if-cached"                    ; Section 14.9.4
+         | cache-extension                     ; Section 14.9.6
+     cache-response-directive =
+           "public"                               ; Section 14.9.1
+         | "private" [ "=" <"> 1#field-name <"> ] ; Section 14.9.1
+         | "no-cache" [ "=" <"> 1#field-name <"> ]; Section 14.9.1
+         | "no-store"                             ; Section 14.9.2
+         | "no-transform"                         ; Section 14.9.5
+         | "must-revalidate"                      ; Section 14.9.4
+         | "proxy-revalidate"                     ; Section 14.9.4
+         | "max-age" "=" delta-seconds            ; Section 14.9.3
+         | "s-maxage" "=" delta-seconds           ; Section 14.9.3
+         | cache-extension                        ; Section 14.9.6
+    cache-extension = token [ "=" ( token | quoted-string ) ]
+When a directive appears without any 1#field-name parameter, the directive applies to the entire request or response. When such a 
+directive appears with a 1#field-name parameter, it applies only to the named field or fields, and not to the rest of the request or 
+response. This mechanism supports extensibility; implementations of future versions of the HTTP protocol might apply these directives
+to header fields not defined in HTTP/1.1.
+
+The cache-control directives can be broken down into these general categories:
+
+      - Restrictions on what are cacheable; these may only be imposed by
+        the origin server.
+      - Restrictions on what may be stored by a cache; these may be
+        imposed by either the origin server or the user agent.
+      - Modifications of the basic expiration mechanism; these may be
+        imposed by either the origin server or the user agent.
+      - Controls over cache revalidation and reload; these may only be
+        imposed by a user agent.
+      - Control over transformation of entities.
+      - Extensions to the caching system.
+
+
+
+14.17 Content-Type
+The Content-Type entity-header field indicates the media type of the entity-body sent to the recipient or, in the case of the HEAD 
+method, the media type that would have been sent had the request been a GET.
+
+       Content-Type   = "Content-Type" ":" media-type
+Media types are defined in section 3.7. An example of the field is
+
+       Content-Type: text/html; charset=ISO-8859-4
+
+
+14.32 Pragma
+The Pragma general-header field is used to include implementation- specific directives that might apply to any recipient along the 
+request/response chain. All pragma directives specify optional behavior from the viewpoint of the protocol; however, some systems MAY 
+require that behavior be consistent with the directives.
+
+       Pragma            = "Pragma" ":" 1#pragma-directive
+       pragma-directive  = "no-cache" | extension-pragma
+       extension-pragma  = token [ "=" ( token | quoted-string ) ]
+When the no-cache directive is present in a request message, an application SHOULD forward the request toward the origin server even if 
+it has a cached copy of what is being requested. This pragma directive has the same semantics as the no-cache cache-directive
+(see section 14.9) and is defined here for backward compatibility with HTTP/1.0. Clients SHOULD include both header fields when a
+no-cache request is sent to a server not known to be HTTP/1.1 compliant.
+
+Pragma directives MUST be passed through by a proxy or gateway application, regardless of their significance to that application, 
+since the directives might be applicable to all recipients along the request/response chain. It is not possible to specify a pragma
+for a specific recipient; however, any pragma directive not relevant to a recipient SHOULD be ignored by that recipient.
+
+HTTP/1.1 caches SHOULD treat "Pragma: no-cache" as if the client had sent "Cache-Control: no-cache". No new Pragma directives will be
+defined in HTTP.
+
+      Note: because the meaning of "Pragma: no-cache as a response
+      header field is not actually specified, it does not provide a
+      reliable replacement for "Cache-Control: no-cache" in a response
+
+
+14.13 Content-Length
+The Content-Length entity-header field indicates the size of the entity-body, in decimal number of OCTETs, sent to the recipient or, in
+the case of the HEAD method, the size of the entity-body that would have been sent had the request been a GET.
+
+       Content-Length    = "Content-Length" ":" 1*DIGIT
+An example is
+
+       Content-Length: 3495
+Applications SHOULD use this field to indicate the transfer-length of the message-body, unless this is prohibited by the rules in
+section 4.4.
+
+Any Content-Length greater than or equal to zero is a valid value. Section 4.4 describes how to determine the length of a message-body
+if a Content-Length is not given.
+
+Note that the meaning of this field is significantly different from the corresponding definition in MIME, where it is an optional field
+used within the "message/external-body" content-type. In HTTP, it SHOULD be sent whenever the message's length can be determined prior
+to being transferred, unless this is prohibited by the rules in section 4.4.
+
+
+
+http headers  - https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+
