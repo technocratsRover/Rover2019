@@ -86,76 +86,76 @@ def objThread():
 	# capture frames from the camera
 	while True:
 		for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-		os.system('clear')
-		# grab the raw NumPy array representing the image, then initialize the timestamp
-		# and occupied/unoccupied text
-		frame = frame.array
-		hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV) # Take each frame
+			os.system('clear')
+			# grab the raw NumPy array representing the image, then initialize the timestamp
+			# and occupied/unoccupied text
+			frame = frame.array
+			hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV) # Take each frame
 
-		# Threshold the HSV image to get only desired colors
-		maskGreen = cv.inRange(hsv, lower_green, upper_green)
-		maskBlue = cv.inRange(hsv, lower_blue, upper_blue)
-		maskYellow = cv.inRange(hsv, lower_yellow, upper_yellow)
-		maskRed = cv.inRange(hsv, lower_red, upper_red)
+			# Threshold the HSV image to get only desired colors
+			maskGreen = cv.inRange(hsv, lower_green, upper_green)
+			maskBlue = cv.inRange(hsv, lower_blue, upper_blue)
+			maskYellow = cv.inRange(hsv, lower_yellow, upper_yellow)
+			maskRed = cv.inRange(hsv, lower_red, upper_red)
 
 
-		# # Clear noise from mask by opening it, then apply gaussian blur
-		maskGreen = cv.morphologyEx(maskGreen, cv.MORPH_OPEN, openingKernel)
-		maskGreen = cv.GaussianBlur(maskGreen, (5, 5), 0)
+			# # Clear noise from mask by opening it, then apply gaussian blur
+			maskGreen = cv.morphologyEx(maskGreen, cv.MORPH_OPEN, openingKernel)
+			maskGreen = cv.GaussianBlur(maskGreen, (5, 5), 0)
 
-		maskBlue = cv.morphologyEx(maskBlue, cv.MORPH_OPEN, openingKernel)
-		maskBlue = cv.GaussianBlur(maskBlue, (5, 5), 0)
+			maskBlue = cv.morphologyEx(maskBlue, cv.MORPH_OPEN, openingKernel)
+			maskBlue = cv.GaussianBlur(maskBlue, (5, 5), 0)
 
-		maskYellow = cv.morphologyEx(maskYellow, cv.MORPH_OPEN, openingKernel)
-		maskYellow = cv.GaussianBlur(maskYellow, (5, 5), 0)
+			maskYellow = cv.morphologyEx(maskYellow, cv.MORPH_OPEN, openingKernel)
+			maskYellow = cv.GaussianBlur(maskYellow, (5, 5), 0)
 
-		maskRed = cv.morphologyEx(maskRed, cv.MORPH_OPEN, openingKernelRed)
-		maskRed = cv.GaussianBlur(maskRed, (5, 5), 0)
+			maskRed = cv.morphologyEx(maskRed, cv.MORPH_OPEN, openingKernelRed)
+			maskRed = cv.GaussianBlur(maskRed, (5, 5), 0)
 
-		# Using threshold incase the image is not binary, can be removed
-		_, threshGreen = cv.threshold(maskGreen, 100, 255, cv.THRESH_BINARY)
-		_, threshBlue = cv.threshold(maskBlue, 100, 255, cv.THRESH_BINARY)
-		_, threshYellow = cv.threshold(maskYellow, 100, 255, cv.THRESH_BINARY)
-		_, threshRed = cv.threshold(maskRed, 100, 255, cv.THRESH_BINARY)
+			# Using threshold incase the image is not binary, can be removed
+			_, threshGreen = cv.threshold(maskGreen, 100, 255, cv.THRESH_BINARY)
+			_, threshBlue = cv.threshold(maskBlue, 100, 255, cv.THRESH_BINARY)
+			_, threshYellow = cv.threshold(maskYellow, 100, 255, cv.THRESH_BINARY)
+			_, threshRed = cv.threshold(maskRed, 100, 255, cv.THRESH_BINARY)
 
-		_,contoursGreen, _ = cv.findContours(threshGreen, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-		_,contoursBlue, _ = cv.findContours(threshBlue, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-		_,contoursYellow, _ = cv.findContours(threshYellow, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-		_,contoursRed, _ = cv.findContours(threshRed, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+			_,contoursGreen, _ = cv.findContours(threshGreen, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+			_,contoursBlue, _ = cv.findContours(threshBlue, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+			_,contoursYellow, _ = cv.findContours(threshYellow, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+			_,contoursRed, _ = cv.findContours(threshRed, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
-		# Bitwise-AND mask and original image
-		mask = cv.bitwise_or(maskBlue, maskGreen)
-		mask = cv.bitwise_or(mask, maskYellow)
-		mask=cv.bitwise_or(mask, maskRed)
-		res = cv.bitwise_and(frame, frame, mask=mask)
+			# Bitwise-AND mask and original image
+			mask = cv.bitwise_or(maskBlue, maskGreen)
+			mask = cv.bitwise_or(mask, maskYellow)
+			mask=cv.bitwise_or(mask, maskRed)
+			res = cv.bitwise_and(frame, frame, mask=mask)
 
-		numGreen = len(contoursGreen)
-		numRed=len(contoursRed)
-		numBlue=len(contoursBlue)
-		numYellow=len(contoursYellow)
-		if(numBlue>5):
-				print("Bottle: True")
-		else:
-				print("Bottle:False")
-		if(numRed>400):
-				print("Box: True")
-		else:
-				print("Box:False")  
-		if(numGreen>4):
-				print("Ball: True")
-		else:
-				print("Ball:False")
-		
-		if(numYellow>2):
-				print("Disc: True")
-		else:
-				print("Disc:False")
+			numGreen = len(contoursGreen)
+			numRed=len(contoursRed)
+			numBlue=len(contoursBlue)
+			numYellow=len(contoursYellow)
+			if(numBlue>5):
+					print("Bottle: True")
+			else:
+					print("Bottle:False")
+			if(numRed>400):
+					print("Box: True")
+			else:
+					print("Box:False")  
+			if(numGreen>4):
+					print("Ball: True")
+			else:
+					print("Ball:False")
+			
+			if(numYellow>2):
+					print("Disc: True")
+			else:
+					print("Disc:False")
 
-		k = cv.waitKey(5) & 0xFF
-		#clear the stream for the next frame
-		rawCapture.truncate(0)
-		if k == 27:
-				break
+			k = cv.waitKey(5) & 0xFF
+			#clear the stream for the next frame
+			rawCapture.truncate(0)
+			if k == 27:
+					break
 
 
 # ===============
