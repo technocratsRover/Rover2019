@@ -1,0 +1,188 @@
+#from matplotlib import pyplot as plt
+import numpy as np
+import math
+import os
+from compass import Compass
+from motor import Motor
+from roverGps import RoverGps
+from time import sleep
+from math import pi as PI
+
+scale=10000
+scaledLocations=[]
+nextLocationIndex=1
+
+# 12.842683 80.156161
+# 12.842893, 80.156136
+locations = [
+	
+	[12.84273, 80.15609],
+	[12.84276, 80.15614],
+	[12.84279, 80.15618],
+	[12.84289, 80.15620],
+]
+
+# locations=np.array([
+#   [80,20],
+#   [90, 30],
+#   [100, 40],
+#   [110, 50]
+# ])
+def setScaledLocations():
+	global scaledLocations
+	global nextLocationIndex
+	global locations
+	locationOrigin = np.array(locations[0])
+	locationsTranslated = [np.array([x, y])-locationOrigin for (x, y) in locations]
+
+	scaledLocations=[[x*scale, y*scale] for (x, y) in locationsTranslated]
+	# for i in scaledLocations:
+	print(scaledLocations)
+#plt.scatter([x*scale for (x,y) in scaledLocation], [y*scale for (x, y) in scaledLocation])
+
+
+def getSlope(currentLocation):
+	global nextLocationIndex
+	global scaledLocations
+	y1 = currentLocation[0]
+	x1 = currentLocation[1]
+	# print(scaledLocations)
+	
+	y2 = (12.842856-y1)*1000
+	x2 = (80.156201-x1)*1000
+	print(x2, y2, end=" ")
+
+	slope = 90-math.atan(y2/x2)*180/PI
+	# if(x2<0):
+		# slope=slope-180
+	return slope
+
+# TODO: Finish this function
+def centerBot(compass, getAngle, threshold=0):
+	try:
+		angle = compass.getCompassAngle()
+	except ValueError:
+		print("ValueError")
+		return False
+	if(abs(abs(angle)-abs(getAngle))>threshold):
+		if(angle<getAngle):
+			print("Rotate right ", getAngle, angle)
+		else:
+			print("Rotate Left ", getAngle, angle)
+		return False
+	else:
+		return True
+	
+# Steps:
+# 1. Center the bot at north
+# 2. Get the next Location slope
+# 3. Rotate the bot that much angle
+# 4. While the bot has not reached the location, move forward
+# 5. If the bot is out of the slope angle, recenter it
+
+def main():
+	global nextLocationIndex
+	global locations
+	botCentered = False
+	locationAccuracy=0.000005
+	# locationAccuracy=2
+	initializedCurrentLocation=False
+
+	print("Setting devices...")
+	compass = Compass("/dev/ttyACM0")
+	# motor = Motor(compass, "/dev/ttyACM1")
+	roverGps = RoverGps()
+	print("All device set!")
+	sleep(1)
+
+	# Set the bot to point at north
+	while not botCentered:
+		
+		print("Centering Rover!",end=": ")
+		if centerBot(compass, 0):
+			botCentered=True
+		# sleep(0.1)
+		# os.system("clear")
+	# botCentered=False
+	
+	os.system("clear")
+	print("Rover centered!")
+	sleep(2)
+
+
+	while not initializedCurrentLocation:
+		print("Saving current Location")
+		try:
+			currentLocation = roverGps.getGpsData()
+		except TypeError:
+			print("Gps no location")
+			continue
+		print(roverGps.getGpsData())
+		currentLocation = [float(currentLocation[0]), float(currentLocation[1])]
+		locations.insert(0, currentLocation)
+		initializedCurrentLocation=True
+		print("Saved first location")
+		print(locations)
+	
+	setScaledLocations()
+	print(locations)
+	sleep(2)
+	
+	# while nextLocationIndex < len(locations):
+	while True:
+		try:
+			currentLocation = roverGps.getGpsData()
+			# print(roverGps)
+			# print(roverGps.getGpsData())
+		except ValueError:
+			print("GPS not set")
+			continue
+		if currentLocation[0]==None:
+			print("GPs no locayion")
+			continue
+			
+		# if abs(currentLocation[0]-locations[nextLocationIndex][0])<locationAccuracy and  abs(currentLocation[1]-locations[nextLocationIndex][1])<locationAccuracy:
+		# 	nextLocationIndex+=1
+		# 	print("Location Reached!")
+		# 	print("Press any key to continue")
+		# 	input()
+		# 	# sleep(2)
+		# 	# Center bot to north
+		# 	botCentered=False
+		# 	while not botCentered:
+		# 		# os.system("clear")
+		# 		print("Centering Rover!",end=": ")
+		# 		if centerBot(compass, 0, 20):
+		# 			print()
+		# 			botCentered=True
+		# 	botCentered=False
+		# 	# input("Press anything to continue to location", locations[nextLocationIndex])
+		# 	continue
+		
+		slope = getSlope(currentLocation)
+		# Move the rover to this slope    
+		while not botCentered:
+			# os.system("clear")
+			slope = getSlope(currentLocation)
+			try:
+				print("Centering Rover ", end=': ')
+			except ValueError:
+				print("Value Error")
+			if centerBot(compass, slope, 15):
+				botCentered=True
+			# sleep(0.5)
+		if not centerBot(compass, slope, 15):
+			print()
+			botCentered=False
+
+		# Move bot forward
+		# os.system("clear")
+		print("Move Forward", roverGps.getGpsData(), slope)
+	print("Finished!")
+				
+
+
+		
+
+if __name__=="__main__":
+	main()

@@ -318,6 +318,7 @@ function updateValues(response){
     if(e.keyCode=='192')
       parameter+='reset=true&';
     
+    console.log(parameter);
     $.ajax({
       type:"GET",
       url: "/setMotors"+parameter,
