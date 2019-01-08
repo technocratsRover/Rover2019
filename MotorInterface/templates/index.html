@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Motor Control Interface</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" media="screen" href="/static/css/bootstrap.css" />
+  <script src="/static/lib/jQuery.min.js"></script>
+  <script src="/static/js/bootstrap.min.js"></script>
+</head>
+
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="#">Mars Rover</a>
+      <div class="navbar-nav mr-auto">
+        <a class="nav-item nav-link" href="#">Technocrats</a>
+      </div>
+    </div>
+    <div class="navbar-nav ml-auto">
+      <a class="nav-item text-info nav-link" href="#">Motor Control</a>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="row container">
+      <div class="col-md-6 baseMotorDiv">
+        <div class="row">
+          <div class="col-12">
+            <div id="motorErrorDiv"></div>
+          </div>
+          <div class="text-muted col-12 border-bottom">
+            <h1>Base Motor</h1>
+          </div>
+          <div class="text-center text-primary col-12">
+            <h1 class="baseMotorStatus" id="baseMotorStatus">Stopped!</h1>
+          </div>
+          <div class="form-group row col-12">
+            <h5 class="form-label col-4 text-muted">Speed Control:</h5>
+            <select class="custom-select col-8" id="rpmSelector">
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="120">120</option>
+              <option value="150">150</option>
+              <option value="170">170</option>
+              <option value="200">200</option>
+              <option value="255">255</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <table class="text-center table table-stripped table-hover baseMotorTable mt-4">
+              <thead class="table-dark">
+                <tr>
+                  <td>Button</td>
+                  <td>Command</td>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Up</td>
+                  <td>Move Forward</td>
+                </tr>
+                <tr>
+                  <td>Down</td>
+                  <td>Move Backward</td>
+                </tr>
+                <tr>
+                  <td>Left</td>
+                  <td>Rotate Anticlockwise</td>
+                </tr>
+                <tr>
+                  <td>Right</td>
+                  <td>Rotate Clockwise</td>
+                </tr>
+                <tr>
+                  <td>&lt;space&gt;</td>
+                  <td>Stop</td>
+                </tr>
+                <tr>
+                  <td>`</td>
+                  <td>Reset</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 armMotorDiv">
+        <div class="row container">
+          <div class="text-muted col-12 border-bottom">
+            <h1>Arm Motor</h1>
+          </div>
+
+          <div class="text-center text-primary col-12">
+            <h1 class="armMotorStatus" id="armMotorStatus">Stopped!</h1>
+          </div>
+          <table class="text-center table table-stripped table-hover armMotorTable mt-4">
+            <thead class="table-dark">
+              <tr>
+                <td>Button</td>
+                <td>Command</td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Up</td>
+                <td>Move Forward</td>
+              </tr>
+              <tr>
+                <td>Down</td>
+                <td>Move Backward</td>
+              </tr>
+              <tr>
+                <td>Left</td>
+                <td>Rotate Anticlockwise</td>
+              </tr>
+              <tr>
+                <td>Right</td>
+                <td>Rotate Clockwise</td>
+              </tr>
+              <tr>
+                <td>`</td>
+                <td>Stop</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Motor Keys Script -->
+  <script>
+    document.onkeydown = checkKey
+
+    function checkKey(e) {
+      e = e || window.event;
+      var parameter = '?';
+      if (e.keyCode == 37) {
+        parameter += 'left=true&'
+      } else {
+        parameter += "left=false&"
+      }
+
+      if (e.keyCode == 38) {
+        parameter += 'front=true&'
+      } else {
+        parameter += "front=false&"
+      }
+
+      if (e.keyCode == 39) {
+        parameter += 'right=true&'
+      } else {
+        parameter += "right=false&"
+      }
+
+
+      if (e.keyCode == 40) {
+        parameter += 'back=true&'
+      } else {
+        parameter += "back=false&"
+      }
+
+      if (e.keyCode == '32')
+        parameter += 'stop=true&';
+
+      if (e.keyCode == '192')
+        parameter += 'reset=true&'
+      console.log("Key pressed: ", e.keyCode);
+      console.log(parameter);
+      $.ajax({
+        type: "GET",
+        url: "/setMotors" + parameter,
+        success: (response) => {
+          if (/error/i.exec(response))
+            document.getElementById("motorErrorDiv").innerHTML =
+            `<div class="alert alert-danger alert-dismissible fade show" role="alert">
+              ${response}
+              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>`;
+          else
+            document.getElementById("baseMotorStatus").innerText = response;
+        },
+        fail: () => {
+          console.log("Motor failed!");
+        }
+      })
+    }
+
+
+    document.getElementById('rpmSelector').addEventListener('change', () => {
+      console.log(document.getElementById('rpmSelector').value);
+      $.get("/setRPM/" + document.getElementById('rpmSelector').value, function (response) {
+        if (/error/i.exec(response))
+          document.getElementById("motorErrorDiv").innerHTML =
+          `<div class="alert alert-danger alert-dismissible fade show" role="alert">
+              ${response}
+              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>`;
+      });
+    });
+  </script>
+</body>
+
+</html>
